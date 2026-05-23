@@ -1,44 +1,40 @@
 # 🎓 CourseMate AI
-### *Retrieval Augmented Generation — Study Assistant*
+### Retrieval Augmented Generation — Study Assistant
 
-> **CourseMate AI** is an AI-powered study assistant designed to help students interact with their learning materials more efficiently. Modern students rely on multiple sources of study material such as lecture notes, textbooks, PDFs, and research papers. These documents are often long and difficult to navigate, making it time-consuming to find specific information.
+> **CourseMate AI** is an AI-powered study assistant that helps students interact with their learning materials more efficiently. Modern students rely on multiple sources — lecture notes, textbooks, PDFs, and research papers — which are often long and difficult to navigate.
 
 ---
 
 ## 🧠 What is RAG?
 
+RAG (Retrieval Augmented Generation) bridges the gap between a powerful LLM and your personal study data.
+
 | Component | Role |
 |-----------|------|
-| **LLM** (e.g. Claude) | Powerful language model — but has no access to your study data |
+| **LLM** (e.g. Claude, Mistral) | Powerful language model — but has no access to your documents |
 | **Your Documents** | PDFs, notes, textbooks — the knowledge base |
 | **RAG Pipeline** | Connects external data to the LLM → context-aware answers |
 
 ```
 External Data Sources ──► Pipeline ──► Context-Aware LLM Responses
-                                           = RAG Application
+                                            = RAG Application
 ```
 
 ---
 
-## 🗺️ Development Plan
-
-> We'll follow each step below and build the full project along the way.
-
----
-
-## Pipeline Overview
+## 🗺️ Full Pipeline Overview
 
 ```
-📄 Upload Docs  ──►  📦 Load  ──►  ✂️ Chunk  ──►  🔢 Embed
-                                                        │
+📄 Upload Docs  ──►  📦 Load  ──►  ✂️ Chunk  ──►  🔢 Embed  ──►  🗄️ Store
+                                                                        │
 💬 User Query  ──►  🔢 Embed  ──►  🔍 Search  ──►  🧩 Retrieve  ──►  🤖 LLM Answer
 ```
 
 ---
 
-## Step-by-Step Breakdown
+## 📋 Step-by-Step Breakdown
 
-### Step 1 — User Uploads Study Material
+### Step 1 — Upload Study Material
 
 Students upload learning resources such as:
 
@@ -51,80 +47,88 @@ Students upload learning resources such as:
 
 ### Step 2 — Document Loading
 
-The system loads documents using **document loaders**.
+The system loads files using **document loaders**, converting raw files into structured `Document` objects ready for processing.
 
-**Goal:** Convert raw files into document objects that can be processed. You may clean the document as well.
+Every `Document` object has two fields:
+
+| Field | Description |
+|-------|-------------|
+| `page_content` | The actual text content of the document |
+| `metadata` | Source info — file path, page number, etc. |
+
+**Example output:**
+```python
+[Document(
+    metadata={'source': 'document_loaders/notes.txt'},
+    page_content='Hello how are you\n\nI want to see what can I do...'
+)]
+```
 
 ---
 
 ### Step 3 — Text Splitting (Chunking)
 
-Documents are usually too large for **LLM context windows**.
+Documents are usually too large to fit inside an **LLM's context window** (the token limit for a single prompt). So we split them into smaller, manageable chunks.
 
-> Using an LLM, we write prompts — but there's a token limit called the **Context Window**. So we split documents into smaller chunks.
-
-✅ Chunking improves retrieval accuracy.
+> ✅ Chunking improves retrieval accuracy by allowing precise matching between the query and relevant sections.
 
 ---
 
 ### Step 4 — Embedding Generation
 
-Each chunk is converted into a **vector embedding**.
-
-Embedding models transform text into numerical vectors that represent **semantic meaning**:
+Each chunk is converted into a **vector embedding** — a numerical representation of its semantic meaning.
 
 ```
 "Gradient Descent Optimization"
-           ↓
-  [0.23, -0.81, 0.44, ...]
+           ↓  Embedding Model
+  [0.23, -0.81, 0.44, 0.67, ...]
 ```
+
+Two pieces of text with similar meaning will have embeddings that are numerically close together, enabling semantic search.
 
 ---
 
 ### Step 5 — Vector Database Storage
 
-All embeddings are stored inside a **vector database**.
+All embeddings are stored in a **vector database** alongside their original content.
 
-The vector database stores:
-
-| Data | Description |
-|------|-------------|
+| Stored Data | Description |
+|-------------|-------------|
 | `embeddings` | Numerical vector representations |
 | `original text chunks` | The actual content |
-| `metadata` | Source, page number, etc. |
+| `metadata` | Source file, page number, etc. |
 
 ---
 
 ### Step 6 — User Asks a Question
 
-Now the student interacts with the system. 💬
+The student types a question into the interface. 💬
 
 ---
 
 ### Step 7 — Query Embedding
 
-The question is **also converted into an embedding** using the same embedding model.
+The question is **also converted into an embedding** using the same embedding model used during ingestion. This ensures the query and documents live in the same vector space.
 
 ---
 
 ### Step 8 — Similarity Search
 
-The vector database performs **semantic similarity search**.
+The vector database performs a **semantic similarity search**, comparing the query embedding against all stored chunk embeddings.
 
-**Goal:** Find chunks that are most relevant to the question.
-
----
-
-### Step 9 — Retriever Component
-
-The retriever selects the **top-k relevant chunks**.
-These chunks form the **context** passed to the LLM.
+**Goal:** Find the chunks most relevant to the question — even if they use different wording.
 
 ---
 
-### Step 10 — LLM Answers
+### Step 9 — Retrieval
 
-Based on the retrieved context, the **LLM generates a precise, grounded answer**. 🎯
+The retriever selects the **top-k most relevant chunks**. These chunks form the **context** that gets passed to the LLM.
+
+---
+
+### Step 10 — LLM Generates an Answer
+
+Based on the retrieved context, the LLM generates a **precise, grounded answer** — citing only information from the student's own study materials. 🎯
 
 ---
 
@@ -140,44 +144,29 @@ RAG (Retrieval Augmented Generation)
 
 ---
 
-## 📦 Document Loader Integration
+## 💻 Code Examples
 
-> Any kind of document loaded through LangChain is converted into a **Document object** containing two fields:
+### Basic Text Document Loader
 
-| Field | Description |
-|-------|-------------|
-| `page_content` | The actual text content of the document |
-| `metadata` | Source info — file path, page number, etc. |
-
-**Example output:**
 ```python
-[Document(metadata={'source': 'document_loaders/notes.txt'}, page_content='Hello how are you \n\nI want to see what can I do and also I need your help \nplease help me')]
-```
-
----
-
-## 🧪 Code — Basic Document Loader
-
-**`test.py`**
-```python
+# test.py
 from langchain_community.document_loaders import TextLoader
 
 data = TextLoader("document_loaders/notes.txt")
 docs = data.load()
 
-print(docs)                  # full document object
-print(len(docs))             # number of documents
-print(docs[0].page_content)  # the actual text
-print(docs[0].metadata)      # file path metadata
-print("1st:", docs[0])
+print(docs)                   # Full document object
+print(len(docs))              # Number of documents loaded
+print(docs[0].page_content)  # The actual text
+print(docs[0].metadata)      # File path metadata
 ```
 
 ---
 
-## 🤖 Code — Document Loader + LLM Integration
+### Text Loader + LLM Integration
 
-**`main.py`**
 ```python
+# main.py
 from dotenv import load_dotenv
 from langchain_mistralai import ChatMistralAI
 from langchain_community.document_loaders import TextLoader
@@ -185,24 +174,77 @@ from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
 
+# Load document
 data = TextLoader("document_loaders/notes.txt")
 docs = data.load()
 
-template = ChatPromptTemplate.from_messages(
-    [
-        ("system", "You are an AI that summarizes the text"),
-        ("human", "{data}")
-    ]
-)
+# Define prompt template
+template = ChatPromptTemplate.from_messages([
+    ("system", "You are an AI that summarizes the text"),
+    ("human", "{data}")
+])
+
+# Initialize model
+model = ChatMistralAI(model="mistral-small-latest")
+
+# Run
+prompt = template.format_messages(data=docs[0].page_content)
+result = model.invoke(prompt)
+print(result.content)
+```
+
+---
+
+### PDF Loader + LLM Integration
+
+```python
+from dotenv import load_dotenv
+from langchain_mistralai import ChatMistralAI
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_core.prompts import ChatPromptTemplate
+
+load_dotenv()
+
+data = PyPDFLoader("document_loaders/GRU.pdf")
+docs = data.load()
+
+template = ChatPromptTemplate.from_messages([
+    ("system", "You are an AI that summarizes the text"),
+    ("human", "{data}")
+])
 
 model = ChatMistralAI(model="mistral-small-latest")
 
 prompt = template.format_messages(data=docs[0].page_content)
-
 result = model.invoke(prompt)
-
 print(result.content)
 ```
+
+---
+
+### Web-Based Loader
+
+```python
+from langchain_community.document_loaders import WebBaseLoader
+
+url = "https://www.apple.com/in/macbook-pro/"
+
+data = WebBaseLoader(url)
+docs = data.load()
+
+print(len(docs))              # Number of pages loaded
+print(docs[0].page_content)  # Scraped page content
+```
+
+---
+
+## 📦 Loader Summary
+
+| Loader | Import | Use Case |
+|--------|--------|----------|
+| `TextLoader` | `langchain_community.document_loaders` | Plain `.txt` files |
+| `PyPDFLoader` | `langchain_community.document_loaders` | PDF documents |
+| `WebBaseLoader` | `langchain_community.document_loaders` | Web pages / URLs |
 
 ---
 
